@@ -10,10 +10,10 @@ class HandleImage:
 	@staticmethod
 	def PrepareSourceImage(img):
 		#Resize
-		resized = imutils.resize(img, width=1024)
-		ratio = img.shape[0] / float(resized.shape[0])
+		#resized = imutils.resize(img, width=1024)
+		#ratio = img.shape[0] / float(resized.shape[0])
 		#Grey and Blur
-		gray = cv2.cvtColor(resized, cv2.COLOR_BGR2GRAY)
+		gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 		blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 		#Thresh
 		thresh = cv2.adaptiveThreshold(blurred,255,cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY,11,2)

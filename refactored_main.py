@@ -13,6 +13,10 @@ from HandleImage import HandleImage
 import httplib2
 import apiclient.http
 import oauth2client.client
+import scipy
+from scipy.misc.pilutil import imread
+from scipy.linalg import norm
+from scipy import sum, average
 
 import os, requests
 
@@ -78,7 +82,7 @@ def postPicture(picture):
 
     requests.post('https://hooks.slack.com/services/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', json)
 
-def isChanged(oldImg, newImg):
+def isChanged2(oldImg, newImg):
     hi = HandleImage()
     oldImgMagnets = find2(oldImg, hi)
     newImgMagnets = find2(newImg, hi)
@@ -89,8 +93,46 @@ def find2(_img, hi):
     img = hi.PrepareSourceImage(_img)
     return hi.GetMagnets(img, False)
 
+
+def isChanged(file1, file2):
+    hi = HandleImage()
+    # read images as 2D arrays (convert to grayscale for simplicity)
+    img1 = hi.PrepareSourceImage(file1)
+    img1a = to_grayscale(img1.astype(float))
+
+    img2 = hi.PrepareSourceImage(file2)
+    img2a = to_grayscale(img2.astype(float))
+    # compare
+    n_m, n_0 = compare_images(img1a, img2a)
+    print "Manhattan norm:", n_m, "/ per pixel:", n_m/img1.size
+    print "Zero norm:", n_0, "/ per pixel:", n_0*1.0/img1.size
+    return int(n_m/img1.size) > 40
+
+def compare_images(img1, img2):
+    # normalize to compensate for exposure difference, this may be unnecessary
+    # consider disabling it
+    img1 = normalize(img1)
+    img2 = normalize(img2)
+    # calculate the difference and its norms
+    diff = img1 - img2  # elementwise for scipy arrays
+    print diff
+    m_norm = sum(abs(diff))  # Manhattan norm
+    z_norm = norm(diff.ravel(), 0)  # Zero norm
+    return (m_norm, z_norm)
+
+def to_grayscale(arr):
+    "If arr is a color image (3D array), convert it to grayscale (2D array)."
+    if len(arr.shape) == 3:
+        return average(arr, -1)  # average over the last axis (color channels)
+    else:
+        return arr
+
+def normalize(arr):
+    rng = arr.max()-arr.min()
+    amin = arr.min()
+    return (arr-amin)*255/rng
+
 def main():
-    
     credentials = oAuth()
 
     # Create an authorized Drive API client.
@@ -101,8 +143,10 @@ def main():
     while True:
 
         new_file = triggerCamera()
-        if isChanged(last_uploaded_file, new_file):
+        image_file = cv2.imread(new_file)
+        if last_uploaded_file == '' or isChanged(last_uploaded_file, new_file):
             new_file = uploadPicture(new_file, drive_service)
+            last_uploaded_file = image_file
             postPicture(new_file)
 
     
