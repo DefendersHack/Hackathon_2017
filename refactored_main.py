@@ -5,8 +5,11 @@ This script uploads and shares a single file to Google Drive.
 https://github.com/googledrive/python-quickstart
 """
 import time,datetime
-
-
+import argparse
+import imutils
+import cv2
+import numpy as np
+from HandleImage import HandleImage
 import httplib2
 import apiclient.http
 import oauth2client.client
@@ -75,6 +78,16 @@ def postPicture(picture):
 
     requests.post('https://hooks.slack.com/services/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', json)
 
+def isChanged(oldImg, newImg):
+    hi = HandleImage()
+    oldImgMagnets = find2(oldImg, hi)
+    newImgMagnets = find2(newImg, hi)
+    return hi.hasAnyMagnetLocationChanged(oldImgMagnets, newImgMagnets, 50)
+
+
+def find2(_img, hi):
+    img = hi.PrepareSourceImage(_img)
+    return hi.GetMagnets(img, False)
 
 def main():
     
@@ -84,14 +97,13 @@ def main():
     http = httplib2.Http()
     credentials.authorize(http)
     drive_service = apiclient.discovery.build('drive', 'v2', http=http)
-    
+    last_uploaded_file = ''
     while True:
 
         new_file = triggerCamera()
-
-        new_file = uploadPicture(new_file, drive_service)
-
-        postPicture(new_file)
+        if isChanged(last_uploaded_file, new_file):
+            new_file = uploadPicture(new_file, drive_service)
+            postPicture(new_file)
 
     
         time.sleep(60)
